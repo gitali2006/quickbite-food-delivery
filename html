@@ -1,0 +1,707 @@
+## PART B — FRONTEND (HTML templates)
+
+### `src/main/resources/templates/customers/list.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Customers</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Customers</h1>
+            <p class="muted">Admin &mdash; full CRUD: register, view, edit and delete customers.</p>
+        </div>
+        <a th:href="@{/admin/customers/new}" class="btn">+ Add customer</a>
+    </div>
+
+    <form class="filter-form" th:action="@{/admin/customers}" method="get">
+        <div class="form-group">
+            <label for="keyword">Search by name</label>
+            <input type="text" id="keyword" name="keyword" th:value="${keyword}" placeholder="e.g. Kasun">
+        </div>
+        <button type="submit" class="btn btn-slate">Search</button>
+        <a th:href="@{/admin/customers}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <div class="card empty" th:if="${#lists.isEmpty(customers)}">
+        <span class="big">&#128100;</span>
+        No customers found. Use <strong>Add customer</strong> to create the first one.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(customers)}">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>E-mail</th>
+                <th>Phone</th>
+                <th>Loyalty points</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="customer : ${customers}">
+                <td th:text="${customer.id}">1</td>
+                <td>
+                    <span class="avatar" th:text="${customer.initials}" style="margin-right:8px;">KP</span>
+                    <strong th:text="${customer.name}">Kasun Perera</strong>
+                </td>
+                <td th:text="${customer.email}">kasun@example.com</td>
+                <td th:text="${customer.phone} ?: '-'">0771234567</td>
+                <td th:text="${customer.loyaltyPoints}">0</td>
+                <td>
+                    <span class="badge" th:classappend="${customer.active} ? 'status-delivered' : 'status-cancelled'"
+                          th:text="${customer.active} ? 'Active' : 'Disabled'">Active</span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a th:href="@{/admin/customers/{id}(id=${customer.id})}" class="btn btn-sm btn-outline">View</a>
+                        <a th:href="@{/admin/customers/{id}/edit(id=${customer.id})}" class="btn btn-sm btn-slate">Edit</a>
+                        <form th:action="@{/admin/customers/{id}/login-as(id=${customer.id})}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-sm btn-orange">Sign in as</button>
+                        </form>
+                        <form th:action="@{/admin/customers/{id}/toggle(id=${customer.id})}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-sm btn-amber"
+                                    th:text="${customer.active} ? 'Disable' : 'Enable'">Disable</button>
+                        </form>
+                        <form th:action="@{/admin/customers/{id}/delete(id=${customer.id})}" method="post" class="inline-form"
+                              >
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customers/form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${customer.id == null} ? 'QuickBite - New customer' : 'QuickBite - Edit customer'">Customer form</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${customer.id == null} ? 'Register a new customer' : 'Edit customer'">Customer</h1>
+            <p class="muted">Admin &mdash; CREATE / UPDATE form</p>
+        </div>
+        <a th:href="@{/admin/customers}" class="btn btn-outline">&larr; Back to list</a>
+    </div>
+
+    <div class="card">
+        <form th:action="${customer.id == null} ? @{/admin/customers} : @{/admin/customers/{id}(id=${customer.id})}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Full name *</label>
+                    <input type="text" id="name" name="name" th:value="${customer.name}" required placeholder="Kasun Perera">
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail *</label>
+                    <input type="email" id="email" name="email" th:value="${customer.email}" required
+                           placeholder="kasun@example.com">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" id="phone" name="phone" th:value="${customer.phone}" placeholder="0771234567">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password <span th:if="${customer.id != null}" class="muted">(leave blank to keep current)</span>
+                        <span th:if="${customer.id == null}">*</span></label>
+                    <input type="password" id="password" name="password" th:required="${customer.id == null}"
+                           placeholder="••••">
+                </div>
+                <div class="form-group full">
+                    <label for="address">Delivery address</label>
+                    <textarea id="address" name="address" th:text="${customer.address}"
+                              placeholder="No 12, Temple Road, Negombo"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn" th:text="${customer.id == null} ? 'Register customer' : 'Save changes'">Save</button>
+                <a th:href="@{/admin/customers}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customers/view.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'QuickBite - ' + ${customer.name}">Customer</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${customer.name}">Customer</h1>
+            <p class="muted">Admin &mdash; customer profile (READ)</p>
+        </div>
+        <div class="btn-row">
+            <a th:href="@{/admin/customers}" class="btn btn-outline">&larr; All customers</a>
+            <a th:href="@{/admin/customers/{id}/edit(id=${customer.id})}" class="btn btn-slate">Edit</a>
+            <a th:href="@{/admin/orders}" class="btn">All orders</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; gap:16px; align-items:center; margin-bottom:14px;">
+            <span class="avatar" th:text="${customer.initials}" style="width:64px;height:64px;font-size:1.4rem;">KP</span>
+            <div>
+                <h2 style="margin:0" th:text="${customer.name}">Kasun Perera</h2>
+                <span class="chip" th:text="${customer.role}">CUSTOMER</span>
+                <span class="badge" th:classappend="${customer.active} ? 'status-delivered' : 'status-cancelled'"
+                      th:text="${customer.active} ? 'Active' : 'Disabled'">Active</span>
+            </div>
+        </div>
+
+        <dl class="kv">
+            <dt>Customer ID</dt>
+            <dd th:text="${customer.id}">1</dd>
+            <dt>E-mail</dt>
+            <dd th:text="${customer.email}">kasun@example.com</dd>
+            <dt>Phone</dt>
+            <dd th:text="${customer.phone} ?: '-'">-</dd>
+            <dt>Delivery address</dt>
+            <dd th:text="${customer.address} ?: '-'">-</dd>
+            <dt>Loyalty points</dt>
+            <dd th:text="${customer.loyaltyPoints} + ' points (10 points per delivered order)'">0</dd>
+            <dt>Display name</dt>
+            <dd th:text="${customer.displayName}">-</dd>
+        </dl>
+
+        <div class="btn-row mt">
+            <form th:action="@{/admin/customers/{id}/login-as(id=${customer.id})}" method="post" class="inline-form">
+                <button type="submit" class="btn btn-orange">Sign in as this customer</button>
+            </form>
+            <form th:action="@{/admin/customers/{id}/delete(id=${customer.id})}" method="post" class="inline-form"
+                  >
+                <button type="submit" class="btn btn-danger">Delete customer</button>
+            </form>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/login.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QuickBite - Sign in</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="auth-wrap">
+        <div class="card auth-card">
+            <div class="center">
+                <span style="font-size:2.6rem;">&#128273;</span>
+                <h1 style="margin-bottom:2px;">Sign in</h1>
+                <p class="muted">One login page for everybody &mdash; you are taken to the right place automatically.</p>
+            </div>
+
+            <div class="alert alert-error" th:if="${param.denied}">
+                Please sign in first to open that page.
+            </div>
+
+            <form th:action="@{/login}" method="post">
+                <div class="form-group mb">
+                    <label for="email">E-mail</label>
+                    <input type="email" id="email" name="email" required placeholder="you@example.com" autofocus>
+                </div>
+                <div class="form-group mb">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="btn" style="width:100%">Sign in</button>
+            </form>
+
+            <p class="center mt">
+                <span class="muted">New customer?</span>
+                <a th:href="@{/register}"><strong>Create an account</strong></a>
+            </p>
+
+            <div class="auth-split">
+                <div class="auth-box auth-box-admin">
+                    <strong>&#128737; Administrator</strong>
+                    <p class="muted">signs in to the admin dashboard and management pages</p>
+                </div>
+                <div class="auth-box auth-box-customer">
+                    <strong>&#128717; Customer</strong>
+                    <p class="muted">signs in to the menu, cart, orders and payment portal</p>
+                </div>
+            </div>
+
+            <div class="alert alert-info mt">
+                <strong>Demo accounts</strong><br>
+                <span class="badge role-chip-admin">ADMIN</span> admin@quickbite.lk / admin123<br>
+                <span class="badge role-chip-customer">CUSTOMER</span> kasun@example.com / 1234 &nbsp;
+                (also nimali@example.com, arun@example.com)<br>
+                <span class="muted">Passwords are stored in MySQL as BCrypt hashes, never as plain text.</span>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/register.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QuickBite - Create your customer account</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="auth-wrap">
+        <div class="card auth-card">
+            <div class="center">
+                <span style="font-size:2.6rem;">&#128100;</span>
+                <h1 style="margin-bottom:2px;">Create your account</h1>
+                <p class="muted">Customer sign-up &mdash; order food, track deliveries, pay online and write reviews.</p>
+            </div>
+
+            <div class="alert alert-error" th:if="${error}" th:text="${error}">error</div>
+            <div class="alert alert-success" th:if="${success}" th:text="${success}">success</div>
+
+            <form th:action="@{/register}" method="post">
+                <div class="form-group mb">
+                    <label for="name">Full name <span class="required">*</span></label>
+                    <input type="text" id="name" name="name" required maxlength="80"
+                           placeholder="Kasun Perera" autofocus>
+                </div>
+                <div class="form-group mb">
+                    <label for="email">E-mail <span class="required">*</span></label>
+                    <input type="email" id="email" name="email" required maxlength="120"
+                           placeholder="you@example.com">
+                </div>
+                <div class="form-group mb">
+                    <label for="phone">Phone number</label>
+                    <input type="text" id="phone" name="phone" maxlength="20"
+                           placeholder="077 123 4567">
+                </div>
+                <div class="form-group mb">
+                    <label for="password">Password <span class="required">*</span></label>
+                    <input type="password" id="password" name="password" required minlength="4"
+                           placeholder="at least 4 characters">
+                </div>
+                <div class="form-group mb">
+                    <label for="confirmPassword">Confirm password <span class="required">*</span></label>
+                    <input type="password" id="confirmPassword" name="confirmPassword" required minlength="4"
+                           placeholder="type the same password again">
+                </div>
+                <button type="submit" class="btn" style="width:100%">Create my account</button>
+            </form>
+
+            <p class="muted center" style="font-size:0.85rem;">
+                Your <strong>delivery address</strong> is not asked here &mdash; add it (and change it)
+                any time in <strong>My profile</strong> after signing in, or type it at checkout.
+            </p>
+
+            <div class="alert alert-info mt">
+                &#128274; Your password is stored in the database as a <strong>BCrypt hash</strong>
+                (60 characters, starting with <code>$2a$</code>) &mdash; never as plain text.
+            </div>
+
+            <p class="center mt">
+                <span class="muted">Already have an account?</span>
+                <a th:href="@{/login}"><strong>Sign in</strong></a>
+            </p>
+            <p class="center muted" style="font-size:0.85rem;">
+                This page creates <strong>customer</strong> accounts only.
+                Administrator e-mail accounts are created by an existing admin
+                in the admin area (<a th:href="@{/login}">/admin/admins</a>).
+            </p>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/admin/admins-list.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Admin accounts</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Administrator accounts</h1>
+            <p class="muted">Full CRUD over the e-mail accounts that can sign in to the admin area.
+                Passwords are stored in MySQL as <strong>BCrypt hashes</strong> &mdash; a hash can never be
+                turned back into the original password.</p>
+        </div>
+        <a th:href="@{/admin/admins/new}" class="btn">+ Add administrator</a>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>E-mail (login)</th>
+                <th>Phone</th>
+                <th>Password</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="admin : ${admins}">
+                <td th:text="${admin.id}">1</td>
+                <td>
+                    <span class="avatar" th:text="${admin.initials}" style="margin-right:8px;">SA</span>
+                    <strong th:text="${admin.name}">Admin</strong>
+                    <span th:if="${admin.id == currentAdminId}" class="chip">you</span>
+                </td>
+                <td th:text="${admin.email}">admin@quickbite.lk</td>
+                <td th:text="${admin.phone} ?: '-'">-</td>
+                <td><span class="chip hash-chip">&#128274; bcrypt hash stored</span></td>
+                <td>
+                    <span class="badge" th:classappend="${admin.active} ? 'status-delivered' : 'status-cancelled'"
+                          th:text="${admin.active} ? 'Active' : 'Disabled'">Active</span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a th:href="@{/admin/admins/{id}/edit(id=${admin.id})}" class="btn btn-sm btn-slate">Edit</a>
+                        <form th:action="@{/admin/admins/{id}/toggle(id=${admin.id})}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-sm btn-amber"
+                                    th:disabled="${admin.id == currentAdminId}"
+                                    th:text="${admin.active} ? 'Disable' : 'Enable'">Disable</button>
+                        </form>
+                        <form th:action="@{/admin/admins/{id}/delete(id=${admin.id})}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-sm btn-danger"
+                                    th:disabled="${admin.id == currentAdminId}">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/admin/admins-form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${admin.id == null} ? 'QuickBite - New administrator' : 'QuickBite - Edit administrator'">Admin form</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${admin.id == null} ? 'Add an administrator' : 'Edit administrator'">Administrator</h1>
+            <p class="muted">The password is hashed with BCrypt before it is saved.</p>
+        </div>
+        <a th:href="@{/admin/admins}" class="btn btn-outline">&larr; Back to admin accounts</a>
+    </div>
+
+    <div class="card">
+        <form th:action="${admin.id == null} ? @{/admin/admins} : @{/admin/admins/{id}(id=${admin.id})}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Full name *</label>
+                    <input type="text" id="name" name="name" th:value="${admin.name}" required placeholder="Sahan Admin">
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail (login) *</label>
+                    <input type="email" id="email" name="email" th:value="${admin.email}" required
+                           placeholder="admin@quickbite.lk">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" id="phone" name="phone" th:value="${admin.phone}" placeholder="0112345678">
+                </div>
+                <div class="form-group">
+                    <label for="password">Password
+                        <span th:if="${admin.id != null}" class="muted">(leave blank to keep the current one)</span>
+                        <span th:if="${admin.id == null}">*</span></label>
+                    <input type="password" id="password" name="password" th:required="${admin.id == null}"
+                           placeholder="••••••••">
+                </div>
+            </div>
+            <div class="alert alert-info" th:if="${admin.id == null}">
+                &#128274; The password you type here is converted to a BCrypt hash
+                (e.g. <code>$2a$10$N9qo8uLO...</code>) before it is stored in MySQL.
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn"
+                        th:text="${admin.id == null} ? 'Create administrator' : 'Save changes'">Save</button>
+                <a th:href="@{/admin/admins}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customer/home.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>QuickBite - My home</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="'Hello, ' + ${customer.name} + ' 👋'">Hello</h1>
+            <p class="muted">
+                <span th:text="${customer.loyaltyPoints} + ' loyalty points'">0 loyalty points</span>
+                <span th:if="${customer.address}" th:text="' &middot; ' + ${customer.address}"></span>
+                <span th:unless="${customer.address}"> &middot; no address saved yet</span>
+            </p>
+        </div>
+        <span class="role-chip role-chip-customer">CUSTOMER AREA</span>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card accent-orange">
+            <div class="stat-value" th:text="${cartTotal != null ? 'Rs. ' + #numbers.formatDecimal(cartTotal, 1, 'COMMA', 2, 'POINT') : 'Rs. 0'}">Rs. 0</div>
+            <div class="stat-label">Items in my cart (<span th:text="${cartCount} ?: 0">0</span>)</div>
+        </div>
+        <div class="stat-card accent-blue">
+            <div class="stat-value" th:text="${activeOrders}">0</div>
+            <div class="stat-label">Active orders</div>
+        </div>
+        <div class="stat-card accent-green">
+            <div class="stat-value" th:text="${customer.loyaltyPoints}">0</div>
+            <div class="stat-label">Loyalty points</div>
+        </div>
+        <div class="stat-card accent-amber">
+            <div class="stat-value">Rs. 300</div>
+            <div class="stat-label">Delivery fee (free above Rs. 3,000)</div>
+        </div>
+    </div>
+
+    <div class="card-grid">
+        <a class="card quick-link" th:href="@{/customer/menu}">
+            <h3>&#127858; Browse the menu</h3>
+            <p class="muted">Order from all partner restaurants.</p></a>
+        <a class="card quick-link" th:href="@{/customer/cart}">
+            <h3>&#128722; My cart</h3>
+            <p class="muted">Review your items and check out.</p></a>
+        <a class="card quick-link" th:href="@{/customer/orders}">
+            <h3>&#128203; My order history</h3>
+            <p class="muted">Track active orders and see past ones.</p></a>
+        <a class="card quick-link" th:href="@{/customer/payments}">
+            <h3>&#128179; Payment portal</h3>
+            <p class="muted">See your payments and pay pending ones.</p></a>
+    </div>
+
+    <div class="section-title">
+        <h2>Popular right now</h2>
+        <a th:href="@{/customer/menu}" class="btn btn-sm btn-outline">Open the menu</a>
+    </div>
+    <div class="card-grid">
+        <div class="card dish-card" th:each="item : ${featured}">
+            <div class="dish-head">
+                <h3 th:text="${item.name}">Dish</h3>
+                <span class="price" th:text="'Rs. ' + ${#numbers.formatDecimal(item.price, 1, 'COMMA', 2, 'POINT')}">Rs. 0</span>
+            </div>
+            <p class="muted" th:text="${item.restaurant.name}">Restaurant</p>
+            <form class="dish-actions" th:action="@{/customer/cart/add}" method="post">
+                <input type="hidden" name="menuItemId" th:value="${item.id}">
+                <input class="qty-input" type="number" name="quantity" value="1" min="1">
+                <button type="submit" class="btn btn-sm btn-orange">Add to cart</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="section-title" th:if="${!#lists.isEmpty(recentOrders)}">
+        <h2>My latest orders</h2>
+        <a th:href="@{/customer/orders}" class="btn btn-sm btn-outline">Full history</a>
+    </div>
+    <div class="table-wrap" th:if="${!#lists.isEmpty(recentOrders)}">
+        <table class="table">
+            <thead>
+            <tr><th>Order</th><th>Restaurant</th><th>Items</th><th>Total (Rs.)</th><th>Status</th><th></th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="order : ${recentOrders}">
+                <td th:text="${order.orderNumber}">ORD-1</td>
+                <td th:text="${order.restaurant.name}">Restaurant</td>
+                <td th:text="${order.itemCount}">0</td>
+                <td th:text="${#numbers.formatDecimal(order.totalAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                <td><span class="badge" th:classappend="${order.status.cssClass}" th:text="${order.status.label}">Status</span></td>
+                <td><a th:href="@{/customer/orders/{id}(id=${order.id})}" class="btn btn-sm btn-outline">Track</a></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customer/profile.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - My profile</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>My profile</h1>
+            <p class="muted">Update your details or change your password (stored as a BCrypt hash).</p>
+        </div>
+    </div>
+
+    <div class="card">
+        <div style="display:flex; gap:16px; align-items:center; margin-bottom:14px;">
+            <span class="avatar" th:text="${customer.initials}" style="width:64px;height:64px;font-size:1.4rem;">KP</span>
+            <div>
+                <h2 style="margin:0" th:text="${customer.name}">Kasun Perera</h2>
+                <span class="chip" th:text="${customer.role}">CUSTOMER</span>
+                <span class="badge" th:classappend="${customer.active} ? 'status-delivered' : 'status-cancelled'"
+                      th:text="${customer.active} ? 'Active' : 'Disabled'">Active</span>
+                <span class="chip hash-chip">&#128274; password is hashed</span>
+            </div>
+        </div>
+
+        <dl class="kv mb">
+            <dt>Customer ID</dt>
+            <dd th:text="${customer.id}">1</dd>
+            <dt>E-mail (login)</dt>
+            <dd th:text="${customer.email}">kasun@example.com</dd>
+            <dt>Loyalty points</dt>
+            <dd th:text="${customer.loyaltyPoints} + ' points (10 per delivered order)'">0</dd>
+            <dt>Member since</dt>
+            <dd th:text="${customer.createdAt != null ? #temporals.format(customer.createdAt, 'dd MMM yyyy') : '-'}">-</dd>
+        </dl>
+
+        <h2 class="mt">Edit my details</h2>
+        <form th:action="@{/customer/profile}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Full name *</label>
+                    <input type="text" id="name" name="name" th:value="${customer.name}" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail (login) *</label>
+                    <input type="email" id="email" name="email" th:value="${customer.email}" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" id="phone" name="phone" th:value="${customer.phone}" placeholder="0771234567">
+                </div>
+                <div class="form-group">
+                    <label for="newPassword">New password <span class="muted">(leave blank to keep the current one)</span></label>
+                    <input type="password" id="newPassword" name="newPassword" placeholder="••••••••">
+                </div>
+                <div class="form-group full">
+                    <label for="address">Delivery address</label>
+                    <textarea id="address" name="address" th:text="${customer.address}"
+                              placeholder="House number, street, city"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Save changes</button>
+                <a th:href="@{/customer}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
