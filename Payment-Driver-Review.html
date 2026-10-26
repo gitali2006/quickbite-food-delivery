@@ -1,0 +1,975 @@
+## PART B — FRONTEND (HTML templates)
+
+### `src/main/resources/templates/payments/list.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Payments (Member 6)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Payments</h1>
+            <p class="muted">Admin &mdash; full CRUD for payments + business actions (pay, fail, refund).</p>
+        </div>
+        <a th:href="@{/admin/payments/new}" class="btn">+ Create payment</a>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card accent-green">
+            <div class="stat-value" th:text="'Rs. ' + ${#numbers.formatDecimal(totalCollected, 1, 'COMMA', 2, 'POINT')}">Rs. 0</div>
+            <div class="stat-label">Total collected (PAID only)</div>
+        </div>
+    </div>
+
+    <form class="filter-form" th:action="@{/admin/payments}" method="get">
+        <div class="form-group">
+            <label for="status">Filter by status</label>
+            <select id="status" name="status">
+                <option value="">All statuses</option>
+                <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.label}"
+                        th:selected="${selectedStatus != null and selectedStatus == s}">Status</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-slate">Apply filter</button>
+        <a th:href="@{/admin/payments}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <div class="card empty" th:if="${#lists.isEmpty(payments)}">
+        <span class="big">&#128179;</span>
+        No payments recorded.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(payments)}">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Amount (Rs.)</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Paid at</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="payment : ${payments}">
+                <td><strong th:text="${payment.transactionRef}">TXN</strong></td>
+                <td><a th:href="@{/admin/orders/{id}(id=${payment.order.id})}" th:text="${payment.order.orderNumber}">ORD</a></td>
+                <td th:text="${payment.order.customer.name}">Customer</td>
+                <td th:text="${#numbers.formatDecimal(payment.amount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                <td th:text="${payment.method.label}">Method</td>
+                <td><span class="badge" th:classappend="${payment.status.cssClass}" th:text="${payment.status.label}">Status</span></td>
+                <td th:text="${payment.paidAt != null ? #temporals.format(payment.paidAt, 'dd MMM, HH:mm') : '-'}">-</td>
+                <td>
+                    <div class="actions">
+                        <a th:href="@{/admin/payments/{id}(id=${payment.id})}" class="btn btn-sm btn-outline">View</a>
+                        <form th:if="${payment.status.name() == 'PENDING'}"
+                              th:action="@{/admin/payments/{id}/pay(id=${payment.id})}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-sm">Mark paid</button>
+                        </form>
+                        <form th:action="@{/admin/payments/{id}/delete(id=${payment.id})}" method="post" class="inline-form"
+                              >
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/payments/view.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'QuickBite - ' + ${payment.transactionRef}">Payment</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="'Payment ' + ${payment.transactionRef}">Payment</h1>
+            <p class="muted">Admin &mdash; payment details and business actions</p>
+        </div>
+        <div class="btn-row">
+            <a th:href="@{/admin/payments}" class="btn btn-outline">&larr; All payments</a>
+            <a th:href="@{/admin/payments/{id}/edit(id=${payment.id})}" class="btn btn-slate">Edit</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <dl class="kv">
+            <dt>Reference</dt>
+            <dd th:text="${payment.transactionRef}">TXN</dd>
+            <dt>Order</dt>
+            <dd><a th:href="@{/admin/orders/{id}(id=${payment.order.id})}"
+                   th:text="${payment.order.orderNumber}">ORD-1</a></dd>
+            <dt>Customer</dt>
+            <dd th:text="${payment.order.customer.name}">Customer</dd>
+            <dt>Restaurant</dt>
+            <dd th:text="${payment.order.restaurant.name}">Restaurant</dd>
+            <dt>Amount</dt>
+            <dd th:text="'Rs. ' + ${#numbers.formatDecimal(payment.amount, 1, 'COMMA', 2, 'POINT')}">Rs. 0.00</dd>
+            <dt>Method</dt>
+            <dd th:text="${payment.method.label}">Method</dd>
+            <dt>Status</dt>
+            <dd><span class="badge" th:classappend="${payment.status.cssClass}" th:text="${payment.status.label}">Status</span></dd>
+            <dt>Paid at</dt>
+            <dd th:text="${payment.paidAt != null ? #temporals.format(payment.paidAt, 'dd MMM yyyy, HH:mm') : 'Not paid yet'}">-</dd>
+        </dl>
+
+        <div class="btn-row mt">
+            <form th:if="${payment.status.name() == 'PENDING'}"
+                  th:action="@{/admin/payments/{id}/pay(id=${payment.id})}" method="post" class="inline-form">
+                <button type="submit" class="btn">Mark as PAID</button>
+            </form>
+            <form th:if="${payment.status.name() == 'PENDING'}"
+                  th:action="@{/admin/payments/{id}/failed(id=${payment.id})}" method="post" class="inline-form">
+                <button type="submit" class="btn btn-amber">Mark as FAILED</button>
+            </form>
+            <form th:if="${payment.status.name() == 'PAID'}"
+                  th:action="@{/admin/payments/{id}/refund(id=${payment.id})}" method="post" class="inline-form"
+                  >
+                <button type="submit" class="btn btn-amber">Refund</button>
+            </form>
+            <form th:action="@{/admin/payments/{id}/delete(id=${payment.id})}" method="post" class="inline-form"
+                  >
+                <button type="submit" class="btn btn-danger">Delete payment</button>
+            </form>
+        </div>
+        <p class="muted mt" style="font-size:.85rem;">
+            Business rules live inside the Payment object itself: a payment can only be refunded when it is PAID,
+            and it can never be paid twice.
+        </p>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/payments/form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - New payment</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Create a payment</h1>
+            <p class="muted">Admin &mdash; CREATE. The amount is taken from the order total automatically.</p>
+        </div>
+        <a th:href="@{/admin/payments}" class="btn btn-outline">&larr; Back to payments</a>
+    </div>
+
+    <div class="card">
+        <form th:action="@{/admin/payments}" method="post">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label for="orderId">Order *</label>
+                    <select id="orderId" name="orderId" required>
+                        <option value="">-- select order --</option>
+                        <option th:each="order : ${orders}" th:value="${order.id}"
+                                th:text="${order.orderNumber} + '  |  ' + ${order.customer.name} + '  |  Rs. ' + ${order.totalAmount} + '  |  ' + ${order.status.label}">
+                            Order
+                        </option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="method">Payment method</label>
+                    <select id="method" name="method">
+                        <option th:each="m : ${methods}" th:value="${m}" th:text="${m.label}">Method</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Create payment</button>
+                <a th:href="@{/admin/payments}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/payments/form-edit.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'QuickBite - Edit ' + ${payment.transactionRef}">Edit payment</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="'Edit payment ' + ${payment.transactionRef}">Edit payment</h1>
+            <p class="muted">Admin &mdash; UPDATE form (amount and method). Use the payment page for status changes.</p>
+        </div>
+        <a th:href="@{/admin/payments/{id}(id=${payment.id})}" class="btn btn-outline">&larr; Back to payment</a>
+    </div>
+
+    <div class="card">
+        <dl class="kv mb">
+            <dt>Order</dt>
+            <dd th:text="${payment.order.orderNumber}">ORD-1</dd>
+            <dt>Current status</dt>
+            <dd><span class="badge" th:classappend="${payment.status.cssClass}" th:text="${payment.status.label}">Status</span></dd>
+        </dl>
+
+        <form th:action="@{/admin/payments/{id}(id=${payment.id})}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="amount">Amount (Rs.)</label>
+                    <input type="number" id="amount" name="amount" step="0.01" min="0"
+                           th:value="${payment.amount}">
+                </div>
+                <div class="form-group">
+                    <label for="method">Method</label>
+                    <select id="method" name="method">
+                        <option th:each="m : ${methods}" th:value="${m}" th:text="${m.label}"
+                                th:selected="${payment.method == m}">Method</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Save changes</button>
+                <a th:href="@{/admin/payments/{id}(id=${payment.id})}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/drivers/list.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Drivers (Member 6)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Delivery drivers</h1>
+            <p class="muted">Admin &mdash; full CRUD for the delivery fleet + availability status.</p>
+        </div>
+        <a th:href="@{/admin/drivers/new}" class="btn">+ Add driver</a>
+    </div>
+
+    <form class="filter-form" th:action="@{/admin/drivers}" method="get">
+        <div class="form-group">
+            <label for="keyword">Search by name</label>
+            <input type="text" id="keyword" name="keyword" th:value="${keyword}" placeholder="e.g. Ruwan">
+        </div>
+        <button type="submit" class="btn btn-slate">Search</button>
+        <a th:href="@{/admin/drivers}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <div class="card empty" th:if="${#lists.isEmpty(drivers)}">
+        <span class="big">&#128666;</span>
+        No drivers in the fleet yet.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(drivers)}">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Phone</th>
+                <th>Vehicle</th>
+                <th>Licence no.</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="driver : ${drivers}">
+                <td th:text="${driver.id}">1</td>
+                <td><strong th:text="${driver.name}">Ruwan</strong></td>
+                <td th:text="${driver.phone} ?: '-'">-</td>
+                <td th:text="${driver.vehicleType} ?: '-'">-</td>
+                <td th:text="${driver.licenseNumber} ?: '-'">-</td>
+                <td><span class="badge" th:classappend="${driver.status.cssClass}" th:text="${driver.status.label}">Status</span></td>
+                <td>
+                    <div class="actions">
+                        <a th:href="@{/admin/drivers/{id}(id=${driver.id})}" class="btn btn-sm btn-outline">View</a>
+                        <a th:href="@{/admin/drivers/{id}/edit(id=${driver.id})}" class="btn btn-sm btn-slate">Edit</a>
+                        <form th:action="@{/admin/drivers/{id}/delete(id=${driver.id})}" method="post" class="inline-form"
+                              >
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/drivers/view.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'QuickBite - ' + ${driver.name}">Driver</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${driver.name}">Driver</h1>
+            <p class="muted">Admin &mdash; driver profile and assigned deliveries (READ)</p>
+        </div>
+        <div class="btn-row">
+            <a th:href="@{/admin/drivers}" class="btn btn-outline">&larr; All drivers</a>
+            <a th:href="@{/admin/drivers/{id}/edit(id=${driver.id})}" class="btn btn-slate">Edit</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <dl class="kv">
+            <dt>Driver ID</dt>
+            <dd th:text="${driver.id}">1</dd>
+            <dt>Role</dt>
+            <dd><span class="chip" th:text="${driver.role}">DRIVER</span></dd>
+            <dt>Status</dt>
+            <dd><span class="badge" th:classappend="${driver.status.cssClass}" th:text="${driver.status.label}">Status</span></dd>
+            <dt>E-mail</dt>
+            <dd th:text="${driver.email}">-</dd>
+            <dt>Phone</dt>
+            <dd th:text="${driver.phone} ?: '-'">-</dd>
+            <dt>Vehicle</dt>
+            <dd th:text="${driver.vehicleType} ?: '-'">-</dd>
+            <dt>Licence number</dt>
+            <dd th:text="${driver.licenseNumber} ?: '-'">-</dd>
+            <dt>Available now?</dt>
+            <dd th:text="${driver.availableForDelivery} ? 'Yes' : 'No'">-</dd>
+        </dl>
+
+        <div class="btn-row mt">
+            <form th:each="s : ${statuses}" th:action="@{/admin/drivers/{id}/status(id=${driver.id})}" method="post"
+                  class="inline-form">
+                <input type="hidden" name="status" th:value="${s}">
+                <button type="submit" class="btn btn-sm btn-outline"
+                        th:disabled="${driver.status == s}" th:text="'Set ' + ${s.label}">Set</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="section-title"><h2>Deliveries</h2></div>
+    <div class="card empty" th:if="${#lists.isEmpty(orders)}">
+        <span class="big">&#128230;</span>
+        This driver has not been assigned any order yet.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(orders)}">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Restaurant</th>
+                <th>Total (Rs.)</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="order : ${orders}">
+                <td th:text="${order.orderNumber}">ORD-1</td>
+                <td th:text="${order.customer.name}">Customer</td>
+                <td th:text="${order.restaurant.name}">Restaurant</td>
+                <td th:text="${#numbers.formatDecimal(order.totalAmount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                <td><span class="badge" th:classappend="${order.status.cssClass}" th:text="${order.status.label}">Status</span></td>
+                <td><a th:href="@{/admin/orders/{id}(id=${order.id})}" class="btn btn-sm btn-outline">View</a></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/drivers/form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${driver.id == null} ? 'QuickBite - New driver' : 'QuickBite - Edit driver'">Driver form</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${driver.id == null} ? 'Add a delivery driver' : 'Edit driver'">Driver</h1>
+            <p class="muted">Admin &mdash; CREATE / UPDATE form</p>
+        </div>
+        <a th:href="@{/admin/drivers}" class="btn btn-outline">&larr; Back to drivers</a>
+    </div>
+
+    <div class="card">
+        <form th:action="${driver.id == null} ? @{/admin/drivers} : @{/admin/drivers/{id}(id=${driver.id})}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Full name *</label>
+                    <input type="text" id="name" name="name" th:value="${driver.name}" required placeholder="Ruwan Jayasinghe">
+                </div>
+                <div class="form-group">
+                    <label for="email">E-mail *</label>
+                    <input type="email" id="email" name="email" th:value="${driver.email}" required placeholder="ruwan@quickbite.lk">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" id="phone" name="phone" th:value="${driver.phone}" placeholder="0775551234">
+                </div>
+                <div class="form-group">
+                    <label for="vehicleType">Vehicle</label>
+                    <input type="text" id="vehicleType" name="vehicleType" th:value="${driver.vehicleType}"
+                           placeholder="Bike / Scooter / Car">
+                </div>
+                <div class="form-group">
+                    <label for="licenseNumber">Licence number</label>
+                    <input type="text" id="licenseNumber" name="licenseNumber" th:value="${driver.licenseNumber}"
+                           placeholder="B-1234567">
+                </div>
+                <div class="form-group">
+                    <label for="status">Status</label>
+                    <select id="status" name="status">
+                        <option th:each="s : ${statuses}" th:value="${s}" th:text="${s.label}"
+                                th:selected="${driver.status == s}">Status</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label for="address">Address</label>
+                    <input type="text" id="address" name="address" th:value="${driver.address}" placeholder="Home address">
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn" th:text="${driver.id == null} ? 'Add driver' : 'Save changes'">Save</button>
+                <a th:href="@{/admin/drivers}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/reviews/list.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Reviews (Member 6)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Customer reviews</h1>
+            <p class="muted">Admin &mdash; full CRUD for reviews. Saving a review recalculates the restaurant rating.</p>
+        </div>
+        <div class="btn-row">
+            <a th:href="@{/admin/reviews/new}" class="btn">+ Write a review</a>
+        </div>
+    </div>
+
+    <form class="filter-form" th:action="@{/admin/reviews}" method="get">
+        <div class="form-group">
+            <label for="restaurantId">Filter by restaurant</label>
+            <select id="restaurantId" name="restaurantId">
+                <option value="">All restaurants</option>
+                <option th:each="r : ${restaurants}" th:value="${r.id}" th:text="${r.name}"
+                        th:selected="${restaurantId != null and restaurantId == r.id}">Restaurant</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-slate">Filter</button>
+        <a th:href="@{/admin/reviews}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <div class="alert alert-info" th:if="${filterRestaurant != null}">
+        Showing reviews for <strong th:text="${filterRestaurant.name}">Restaurant</strong>
+        (average <span th:text="${filterRestaurant.rating}">0</span> / 5).
+    </div>
+
+    <div class="card empty" th:if="${#lists.isEmpty(reviews)}">
+        <span class="big">&#11088;</span>
+        No reviews yet.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(reviews)}">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Restaurant</th>
+                <th>Customer</th>
+                <th>Rating</th>
+                <th>Comment</th>
+                <th>Sentiment</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="review : ${reviews}">
+                <td th:text="${review.restaurant.name}">Restaurant</td>
+                <td th:text="${review.customer.name}">Customer</td>
+                <td><span class="stars" th:text="${review.ratingStars}">*****</span>
+                    <span class="muted" th:text="'(' + ${review.rating} + '/5)'">(5/5)</span></td>
+                <td th:text="${review.comment} ?: '-'">Comment</td>
+                <td><span class="chip" th:text="${review.sentiment}">Positive</span></td>
+                <td>
+                    <div class="actions">
+                        <a th:href="@{/admin/reviews/{id}/edit(id=${review.id})}" class="btn btn-sm btn-slate">Edit</a>
+                        <form th:action="@{/admin/reviews/{id}/delete(id=${review.id})}" method="post" class="inline-form"
+                              >
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/reviews/form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Write a review</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Write a review</h1>
+            <p class="muted">Admin &mdash; CREATE. Give 1 to 5 stars and tell others how the food was.</p>
+        </div>
+        <a th:href="@{/admin/reviews}" class="btn btn-outline">&larr; All reviews</a>
+    </div>
+
+    <div class="card">
+        <form th:action="@{/admin/reviews}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="restaurantId">Restaurant *</label>
+                    <select id="restaurantId" name="restaurantId" required>
+                        <option value="">-- select restaurant --</option>
+                        <option th:each="r : ${restaurants}" th:value="${r.id}" th:text="${r.name}"
+                                th:selected="${restaurantId != null and restaurantId == r.id}">Restaurant</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="customerId">Customer *</label>
+                    <select id="customerId" name="customerId" required>
+                        <option value="">-- select customer --</option>
+                        <option th:each="c : ${customers}" th:value="${c.id}" th:text="${c.name}">Customer</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="rating">Rating (1-5 stars) *</label>
+                    <select id="rating" name="rating">
+                        <option value="5">5 - Excellent</option>
+                        <option value="4">4 - Very good</option>
+                        <option value="3">3 - Okay</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Bad</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label for="comment">Comment</label>
+                    <textarea id="comment" name="comment" placeholder="How was the food and the delivery?"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Submit review</button>
+                <a th:href="@{/admin/reviews}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/reviews/form-edit.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Edit review</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Edit review</h1>
+            <p class="muted">Admin &mdash; UPDATE form</p>
+        </div>
+        <a th:href="@{/admin/reviews}" class="btn btn-outline">&larr; All reviews</a>
+    </div>
+
+    <div class="card">
+        <dl class="kv mb">
+            <dt>Restaurant</dt>
+            <dd th:text="${review.restaurant.name}">Restaurant</dd>
+            <dt>Customer</dt>
+            <dd th:text="${review.customer.name}">Customer</dd>
+        </dl>
+
+        <form th:action="@{/admin/reviews/{id}(id=${review.id})}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="rating">Rating (1-5 stars)</label>
+                    <select id="rating" name="rating">
+                        <option value="5" th:selected="${review.rating == 5}">5 - Excellent</option>
+                        <option value="4" th:selected="${review.rating == 4}">4 - Very good</option>
+                        <option value="3" th:selected="${review.rating == 3}">3 - Okay</option>
+                        <option value="2" th:selected="${review.rating == 2}">2 - Poor</option>
+                        <option value="1" th:selected="${review.rating == 1}">1 - Bad</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label for="comment">Comment</label>
+                    <textarea id="comment" name="comment" th:text="${review.comment}"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Save changes</button>
+                <a th:href="@{/admin/reviews}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customer/payments.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Payment portal</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Payment portal</h1>
+            <p class="muted">All your payments in one place &mdash; pay pending ones here.
+                Paid payments can never be paid twice (business rule).</p>
+        </div>
+        <a th:href="@{/customer/orders}" class="btn btn-outline">My orders</a>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card accent-amber">
+            <div class="stat-value" th:text="${#lists.size(payments)}">0</div>
+            <div class="stat-label">Payments</div>
+        </div>
+        <div class="stat-card accent-orange">
+            <div class="stat-value" th:text="${pendingCount}">0</div>
+            <div class="stat-label">Waiting to be paid</div>
+        </div>
+    </div>
+
+    <div class="card empty" th:if="${#lists.isEmpty(payments)}">
+        <span class="big">&#128179;</span>
+        No payments yet &mdash; place an order to see your payment records here.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(payments)}">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>Reference</th>
+                <th>Order</th>
+                <th>Restaurant</th>
+                <th>Amount (Rs.)</th>
+                <th>Method</th>
+                <th>Status</th>
+                <th>Paid at</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="payment : ${payments}">
+                <td><strong th:text="${payment.transactionRef}">TXN</strong></td>
+                <td><a th:href="@{/customer/orders/{id}(id=${payment.order.id})}"
+                       th:text="${payment.order.orderNumber}">ORD</a></td>
+                <td th:text="${payment.order.restaurant.name}">Restaurant</td>
+                <td th:text="${#numbers.formatDecimal(payment.amount, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                <td th:text="${payment.method.label}">Method</td>
+                <td><span class="badge" th:classappend="${payment.status.cssClass}" th:text="${payment.status.label}">Status</span></td>
+                <td th:text="${payment.paidAt != null ? #temporals.format(payment.paidAt, 'dd MMM, HH:mm') : '-'}">-</td>
+                <td>
+                    <form th:if="${payment.status.name() == 'PENDING'}"
+                          th:action="@{/customer/payments/{id}/pay(id=${payment.id})}" method="post" class="inline-form">
+                        <button type="submit" class="btn btn-sm">Pay now</button>
+                    </form>
+                    <span class="muted" th:if="${payment.status.name() == 'PAID'}">Completed &#10004;</span>
+                    <span class="muted" th:if="${payment.status.name() == 'REFUNDED'}">Refunded</span>
+                    <span class="muted" th:if="${payment.status.name() == 'FAILED'}">Failed</span>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="alert alert-info">
+        &#128274; Payments are stored against your account only &mdash; the portal shows your own records,
+        and the server rejects any attempt to open someone else's payment.
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customer/reviews.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - My reviews</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>My reviews</h1>
+            <p class="muted" th:text="'Reviews written by ' + ${customer.name} + ' — saving one updates the restaurant rating.'">Reviews</p>
+        </div>
+        <a th:href="@{/customer/reviews/new}" class="btn">+ Write a review</a>
+    </div>
+
+    <div class="card empty" th:if="${#lists.isEmpty(reviews)}">
+        <span class="big">&#11088;</span>
+        You have not written any reviews yet.
+        <div class="btn-row" style="justify-content:center;margin-top:14px;">
+            <a th:href="@{/customer/reviews/new}" class="btn btn-orange">Write your first review</a>
+        </div>
+    </div>
+
+    <div class="card-grid" th:unless="${#lists.isEmpty(reviews)}">
+        <div class="card" th:each="review : ${reviews}">
+            <div style="display:flex;justify-content:space-between;gap:10px;">
+                <h3 th:text="${review.restaurant.name}">Restaurant</h3>
+                <span class="stars" th:text="${review.ratingStars}">*****</span>
+            </div>
+            <p th:text="${review.comment} ?: 'No comment'">Comment</p>
+            <p><span class="chip" th:text="${review.sentiment}">Sentiment</span></p>
+            <div class="btn-row">
+                <a th:href="@{/customer/reviews/{id}/edit(id=${review.id})}" class="btn btn-sm btn-slate">Edit</a>
+                <form th:action="@{/customer/reviews/{id}/delete(id=${review.id})}" method="post" class="inline-form">
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customer/review-form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${review != null and review.id != null} ? 'QuickBite - Edit review' : 'QuickBite - Write a review'">Review form</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${review != null and review.id != null} ? 'Edit review' : 'Write a review'">Review</h1>
+            <p class="muted">Tell others how the food and the delivery were.</p>
+        </div>
+        <a th:href="@{/customer/reviews}" class="btn btn-outline">&larr; My reviews</a>
+    </div>
+
+    <div class="card">
+        <!-- EDIT -->
+        <form th:if="${review != null and review.id != null}"
+              th:action="@{/customer/reviews/{id}(id=${review.id})}" method="post">
+            <dl class="kv mb">
+                <dt>Restaurant</dt>
+                <dd th:text="${review.restaurant.name}">Restaurant</dd>
+            </dl>
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="rating">Rating (1-5 stars)</label>
+                    <select id="rating" name="rating">
+                        <option value="5" th:selected="${review.rating == 5}">5 - Excellent</option>
+                        <option value="4" th:selected="${review.rating == 4}">4 - Very good</option>
+                        <option value="3" th:selected="${review.rating == 3}">3 - Okay</option>
+                        <option value="2" th:selected="${review.rating == 2}">2 - Poor</option>
+                        <option value="1" th:selected="${review.rating == 1}">1 - Bad</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label for="comment">Comment</label>
+                    <textarea id="comment" name="comment" th:text="${review.comment}"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Save changes</button>
+                <a th:href="@{/customer/reviews}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+
+        <!-- CREATE -->
+        <form th:unless="${review != null and review.id != null}"
+              th:action="@{/customer/reviews}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="restaurantId">Restaurant *</label>
+                    <select id="restaurantId" name="restaurantId" required>
+                        <option value="">-- select restaurant --</option>
+                        <option th:each="r : ${restaurants}" th:value="${r.id}" th:text="${r.name}"
+                                th:selected="${restaurantId != null and restaurantId == r.id}">Restaurant</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="rating2">Rating (1-5 stars) *</label>
+                    <select id="rating2" name="rating">
+                        <option value="5">5 - Excellent</option>
+                        <option value="4">4 - Very good</option>
+                        <option value="3">3 - Okay</option>
+                        <option value="2">2 - Poor</option>
+                        <option value="1">1 - Bad</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label for="comment2">Comment</label>
+                    <textarea id="comment2" name="comment" placeholder="How was the food and the delivery?"></textarea>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn">Submit review</button>
+                <a th:href="@{/customer/reviews}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
