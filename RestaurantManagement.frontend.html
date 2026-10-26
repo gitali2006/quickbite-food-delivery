@@ -1,0 +1,232 @@
+## PART B — FRONTEND (HTML templates)
+
+### `src/main/resources/templates/restaurants/list.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Restaurants (Member 2)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Restaurants</h1>
+            <p class="muted">Admin &mdash; full CRUD: add, list, view, edit, delete and open/close restaurants.</p>
+        </div>
+        <a th:href="@{/admin/restaurants/new}" class="btn">+ Add restaurant</a>
+    </div>
+
+    <form class="filter-form" th:action="@{/admin/restaurants}" method="get">
+        <div class="form-group">
+            <label for="keyword">Search by name</label>
+            <input type="text" id="keyword" name="keyword" th:value="${keyword}" placeholder="e.g. Pizza">
+        </div>
+        <button type="submit" class="btn btn-slate">Search</button>
+        <a th:href="@{/admin/restaurants}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <div class="card empty" th:if="${#lists.isEmpty(restaurants)}">
+        <span class="big">&#127869;</span>
+        No restaurants yet. Use <strong>Add restaurant</strong> to create one.
+    </div>
+
+    <div class="card-grid">
+        <div class="card" th:each="restaurant : ${restaurants}">
+            <div class="dish-head" style="display:flex;justify-content:space-between;gap:10px;">
+                <h3 th:text="${restaurant.name}">Rice & Curry House</h3>
+                <span class="badge" th:classappend="${restaurant.open} ? 'status-delivered' : 'status-cancelled'"
+                      th:text="${restaurant.statusLabel}">Open</span>
+            </div>
+            <p class="muted" style="margin:4px 0 8px;">
+                <span class="chip" th:text="${restaurant.cuisineType}">Sri Lankan</span>
+            </p>
+            <p class="stars" th:text="${restaurant.ratingStars} + '  ' + ${restaurant.rating}">*****</p>
+            <p class="muted" th:if="${restaurant.address}">&#128205; <span th:text="${restaurant.address}">Address</span></p>
+            <p class="muted" th:if="${restaurant.phone}">&#128222; <span th:text="${restaurant.phone}">Phone</span></p>
+            <div class="btn-row mt">
+                <a th:href="@{/admin/restaurants/{id}(id=${restaurant.id})}" class="btn btn-sm">View</a>
+                <a th:href="@{/admin/restaurants/{id}/edit(id=${restaurant.id})}" class="btn btn-sm btn-slate">Edit</a>
+                <form th:action="@{/admin/restaurants/{id}/toggle(id=${restaurant.id})}" method="post" class="inline-form">
+                    <button type="submit" class="btn btn-sm btn-amber"
+                            th:text="${restaurant.open} ? 'Close' : 'Open'">Close</button>
+                </form>
+                <form th:action="@{/admin/restaurants/{id}/delete(id=${restaurant.id})}" method="post" class="inline-form"
+                      >
+                    <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/restaurants/form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${restaurant.id == null} ? 'QuickBite - New restaurant' : 'QuickBite - Edit restaurant'">Restaurant form</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${restaurant.id == null} ? 'Add a restaurant' : 'Edit restaurant'">Restaurant</h1>
+            <p class="muted">Admin &mdash; CREATE / UPDATE form</p>
+        </div>
+        <a th:href="@{/admin/restaurants}" class="btn btn-outline">&larr; Back to list</a>
+    </div>
+
+    <div class="card">
+        <form th:action="${restaurant.id == null} ? @{/admin/restaurants} : @{/admin/restaurants/{id}(id=${restaurant.id})}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Restaurant name *</label>
+                    <input type="text" id="name" name="name" th:value="${restaurant.name}" required placeholder="Rice &amp; Curry House">
+                </div>
+                <div class="form-group">
+                    <label for="cuisineType">Cuisine type</label>
+                    <input type="text" id="cuisineType" name="cuisineType" th:value="${restaurant.cuisineType}"
+                           placeholder="Sri Lankan / Chinese / Italian">
+                </div>
+                <div class="form-group">
+                    <label for="phone">Phone</label>
+                    <input type="text" id="phone" name="phone" th:value="${restaurant.phone}" placeholder="0312233445">
+                </div>
+                <div class="form-group">
+                    <label for="rating">Rating (0 - 5)</label>
+                    <input type="number" id="rating" name="rating" step="0.1" min="0" max="5"
+                           th:value="${restaurant.id == null ? 4.0 : restaurant.rating}">
+                </div>
+                <div class="form-group full">
+                    <label for="address">Address</label>
+                    <input type="text" id="address" name="address" th:value="${restaurant.address}"
+                           placeholder="Main Street 21, Negombo">
+                </div>
+                <div class="form-group full">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" th:text="${restaurant.description}"
+                              placeholder="What is this restaurant famous for?"></textarea>
+                </div>
+                <div class="form-group check-row">
+                    <input type="checkbox" id="open" name="open" th:checked="${restaurant.id == null or restaurant.open}">
+                    <label for="open" style="margin:0">Restaurant is open for orders</label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn" th:text="${restaurant.id == null} ? 'Add restaurant' : 'Save changes'">Save</button>
+                <a th:href="@{/admin/restaurants}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/restaurants/view.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="'QuickBite - ' + ${restaurant.name}">Restaurant</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${restaurant.name}">Restaurant</h1>
+            <p class="muted">Admin &mdash; restaurant profile and its menu (READ)</p>
+        </div>
+        <div class="btn-row">
+            <a th:href="@{/admin/restaurants}" class="btn btn-outline">&larr; All restaurants</a>
+            <a th:href="@{/admin/restaurants/{id}/edit(id=${restaurant.id})}" class="btn btn-slate">Edit</a>
+            <a th:href="@{/admin/menu/new}" class="btn">+ Add dish</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="restaurant-head">
+            <div>
+                <span class="chip" th:text="${restaurant.cuisineType} ?: 'No cuisine set'">Cuisine</span>
+                <span class="badge" th:classappend="${restaurant.open} ? 'status-delivered' : 'status-cancelled'"
+                      th:text="${restaurant.statusLabel}">Open</span>
+            </div>
+            <span class="stars" th:text="${restaurant.ratingStars} + '  ' + ${restaurant.rating} + ' / 5'">Rating</span>
+        </div>
+        <dl class="kv">
+            <dt>Restaurant ID</dt>
+            <dd th:text="${restaurant.id}">1</dd>
+            <dt>Address</dt>
+            <dd th:text="${restaurant.address} ?: '-'">-</dd>
+            <dt>Phone</dt>
+            <dd th:text="${restaurant.phone} ?: '-'">-</dd>
+            <dt>Description</dt>
+            <dd th:text="${restaurant.description} ?: '-'">-</dd>
+            <dt>Menu items</dt>
+            <dd th:text="${#lists.size(menuItems)}">0</dd>
+            <dt>Reviews</dt>
+            <dd><a th:href="@{/admin/reviews(restaurantId=${restaurant.id})}">See customer reviews</a></dd>
+        </dl>
+    </div>
+
+    <div class="section-title">
+        <h2>Menu of this restaurant</h2>
+        <a th:href="@{/admin/menu(restaurantId=${restaurant.id})}" class="btn btn-sm btn-outline">Manage menu</a>
+    </div>
+
+    <div class="card empty" th:if="${#lists.isEmpty(menuItems)}">
+        <span class="big">&#127858;</span>
+        This restaurant has no dishes yet.
+    </div>
+
+    <div class="card-grid" th:unless="${#lists.isEmpty(menuItems)}">
+        <div class="card dish-card" th:each="item : ${menuItems}">
+            <div class="dish-head">
+                <h3 th:text="${item.name}">Chicken Kottu</h3>
+                <span class="price" th:text="'Rs. ' + ${#numbers.formatDecimal(item.price, 1, 'COMMA', 2, 'POINT')}">Rs. 0</span>
+            </div>
+            <p th:text="${item.description} ?: ''">Description</p>
+            <p>
+                <span class="chip" th:text="${item.category} ?: 'Uncategorised'">Main</span>
+                <span class="chip chip-veg" th:if="${item.vegetarian}">&#127793; Veg</span>
+                <span class="badge" th:classappend="${item.available} ? 'status-delivered' : 'status-cancelled'"
+                      th:text="${item.availabilityLabel}">Available</span>
+            </p>
+            <form class="dish-actions" th:action="@{/cart/add}" method="post">
+                <input type="hidden" name="menuItemId" th:value="${item.id}">
+                <input class="qty-input" type="number" name="quantity" value="1" min="1" th:disabled="${!item.available}">
+                <button type="submit" class="btn btn-sm btn-orange" th:disabled="${!item.available}">
+                    <span th:text="${item.available} ? 'Add to cart' : 'Sold out'">Add to cart</span>
+                </button>
+            </form>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
