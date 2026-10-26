@@ -1,0 +1,198 @@
+## PART B — FRONTEND (HTML templates)
+
+### `src/main/resources/templates/customer/cart.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - My cart</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>My cart</h1>
+            <p class="muted">Add dishes, change quantities, remove items or clear the cart &mdash; then check out.</p>
+        </div>
+        <a th:href="@{/customer/menu}" class="btn btn-outline">+ Add more food</a>
+    </div>
+
+    <div class="card empty" th:if="${#lists.isEmpty(cartItems)}">
+        <span class="big">&#128722;</span>
+        Your cart is empty.
+        <div class="btn-row" style="justify-content:center;margin-top:14px;">
+            <a th:href="@{/customer/menu}" class="btn btn-orange">Browse the menu</a>
+        </div>
+    </div>
+
+    <div th:if="${!#lists.isEmpty(cartItems)}">
+        <div class="card tight mb">
+            <strong>Ordering from:</strong>
+            <span th:text="${restaurant != null ? restaurant.name : '-'}">Restaurant</span>
+            <span class="muted">&mdash; one cart can hold dishes from one restaurant only.</span>
+        </div>
+
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Dish</th>
+                    <th>Unit price (Rs.)</th>
+                    <th>Quantity</th>
+                    <th>Line total (Rs.)</th>
+                    <th></th>
+                </tr>
+                </thead>
+                <tbody>
+                <tr th:each="item : ${cartItems}">
+                    <td>
+                        <strong th:text="${item.menuItem.name}">Dish</strong>
+                        <div class="muted" style="font-size:.82rem;" th:text="${item.menuItem.restaurant.name}">Restaurant</div>
+                    </td>
+                    <td th:text="${#numbers.formatDecimal(item.menuItem.price, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                    <td>
+                        <form th:action="@{/customer/cart/update}" method="post" style="display:flex;gap:6px;align-items:center;">
+                            <input type="hidden" name="cartItemId" th:value="${item.id}">
+                            <input class="qty-input" type="number" name="quantity" th:value="${item.quantity}" min="1">
+                            <button type="submit" class="btn btn-sm btn-slate">Update</button>
+                        </form>
+                    </td>
+                    <td th:text="${#numbers.formatDecimal(item.lineTotal, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                    <td>
+                        <form th:action="@{/customer/cart/remove/{id}(id=${item.id})}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-sm btn-danger">Remove</button>
+                        </form>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card totals mt">
+            <div class="row"><span>Subtotal</span>
+                <span th:text="'Rs. ' + ${#numbers.formatDecimal(subtotal, 1, 'COMMA', 2, 'POINT')}">Rs. 0.00</span></div>
+            <div class="row"><span>Delivery fee</span>
+                <span th:text="'Rs. ' + ${#numbers.formatDecimal(deliveryFee, 1, 'COMMA', 2, 'POINT')}">Rs. 0.00</span></div>
+            <div class="row grand"><span>Total</span>
+                <span th:text="'Rs. ' + ${#numbers.formatDecimal(grandTotal, 1, 'COMMA', 2, 'POINT')}">Rs. 0.00</span></div>
+            <p class="muted" style="font-size:.82rem;">Delivery is free for orders above Rs. 3,000.</p>
+            <div class="btn-row">
+                <a th:href="@{/customer/checkout}" class="btn btn-orange">Proceed to checkout</a>
+                <form th:action="@{/customer/cart/clear}" method="post" class="inline-form">
+                    <button type="submit" class="btn btn-outline">Clear cart</button>
+                </form>
+            </div>
+        </div>
+
+        <div th:if="${!#lists.isEmpty(suggestions)}">
+            <div class="section-title"><h2>You may also like</h2></div>
+            <div class="card-grid">
+                <div class="card dish-card" th:each="item : ${suggestions}">
+                    <div class="dish-head">
+                        <h3 th:text="${item.name}">Dish</h3>
+                        <span class="price" th:text="'Rs. ' + ${#numbers.formatDecimal(item.price, 1, 'COMMA', 2, 'POINT')}">Rs. 0</span>
+                    </div>
+                    <form class="dish-actions" th:action="@{/customer/cart/add}" method="post">
+                        <input type="hidden" name="menuItemId" th:value="${item.id}">
+                        <input class="qty-input" type="number" name="quantity" value="1" min="1">
+                        <button type="submit" class="btn btn-sm btn-orange">Add to cart</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/customer/checkout.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Checkout</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Checkout &amp; payment</h1>
+            <p class="muted">Placing the order creates the order and its payment record together.</p>
+        </div>
+        <a th:href="@{/customer/cart}" class="btn btn-outline">&larr; Back to cart</a>
+    </div>
+
+    <div class="table-wrap">
+        <table class="table">
+            <thead>
+            <tr><th>Dish</th><th>Qty</th><th>Line total (Rs.)</th></tr>
+            </thead>
+            <tbody>
+            <tr th:each="item : ${cartItems}">
+                <td th:text="${item.menuItem.name}">Dish</td>
+                <td th:text="${item.quantity}">1</td>
+                <td th:text="${#numbers.formatDecimal(item.lineTotal, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card totals mt">
+        <div class="row"><span>Subtotal</span>
+            <span th:text="'Rs. ' + ${#numbers.formatDecimal(subtotal, 1, 'COMMA', 2, 'POINT')}">Rs. 0.00</span></div>
+        <div class="row"><span>Delivery fee</span>
+            <span th:text="'Rs. ' + ${#numbers.formatDecimal(deliveryFee, 1, 'COMMA', 2, 'POINT')}">Rs. 0.00</span></div>
+        <div class="row grand"><span>Total to pay</span>
+            <span th:text="'Rs. ' + ${#numbers.formatDecimal(grandTotal, 1, 'COMMA', 2, 'POINT')}">Rs. 0.00</span></div>
+    </div>
+
+    <div class="card mt">
+        <h2>Delivery details</h2>
+        <form th:action="@{/customer/checkout}" method="post">
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label for="deliveryAddress">Delivery address *</label>
+                    <textarea id="deliveryAddress" name="deliveryAddress" required
+                              th:text="${customer.address}">House number, street, city</textarea>
+                </div>
+                <div class="form-group full">
+                    <label for="notes">Order notes (optional)</label>
+                    <input type="text" id="notes" name="notes" placeholder="e.g. no onions, ring the bell twice">
+                </div>
+                <div class="form-group">
+                    <label for="paymentMethod">Payment method</label>
+                    <select id="paymentMethod" name="paymentMethod">
+                        <option th:each="method : ${paymentMethods}" th:value="${method}" th:text="${method.label}">Method</option>
+                    </select>
+                </div>
+            </div>
+            <div class="alert alert-info">
+                &#128179; <strong>Cash on delivery</strong> stays <em>Pending</em> until the order is delivered.
+                The other methods are treated as <em>Paid</em> immediately, and everything can be
+                managed again later in the <a th:href="@{/customer/payments}">payment portal</a>.
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn btn-orange">Place order &amp; pay</button>
+                <a th:href="@{/customer/cart}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
