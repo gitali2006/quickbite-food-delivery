@@ -1,0 +1,266 @@
+## PART B — FRONTEND (HTML templates)
+
+### `src/main/resources/templates/menu/menu.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Menu</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Our menu</h1>
+            <p class="muted">Every dish grouped under its restaurant.
+                <span th:if="${authRole == 'CUSTOMER'}">Add anything to your cart.</span>
+                <span th:unless="${authRole == 'CUSTOMER'}">Sign in as a customer to order.</span></p>
+        </div>
+        <div class="btn-row">
+            <a th:if="${authRole == 'ADMIN'}" th:href="@{/admin/menu}" class="btn btn-outline">Manage menu (admin)</a>
+            <a th:if="${authRole == 'CUSTOMER'}" th:href="@{/customer/cart}" class="btn">Go to cart</a>
+            <a th:unless="${authRole == 'CUSTOMER'}" th:href="@{/login}" class="btn btn-orange">Sign in to order</a>
+        </div>
+    </div>
+
+    <div class="card empty" th:if="${#maps.isEmpty(menuByRestaurant)}">
+        <span class="big">&#127858;</span>
+        The menu is empty right now &mdash; please check back soon.
+    </div>
+
+    <section th:each="entry : ${menuByRestaurant}">
+        <div class="restaurant-head">
+            <div>
+                <h2 style="margin:0" th:text="${entry.key.name}">Rice & Curry House</h2>
+                <p class="muted" style="margin:2px 0 0;">
+                    <span class="chip" th:text="${entry.key.cuisineType}">Sri Lankan</span>
+                    <span class="stars" th:text="${entry.key.ratingStars}">*****</span>
+                    <span class="badge" th:classappend="${entry.key.open} ? 'status-delivered' : 'status-cancelled'"
+                          th:text="${entry.key.statusLabel}">Open</span>
+                </p>
+            </div>
+        </div>
+
+        <div class="card-grid">
+            <div class="card dish-card" th:each="item : ${entry.value}">
+                <div class="dish-head">
+                    <h3 th:text="${item.name}">Chicken Kottu</h3>
+                    <span class="price" th:text="'Rs. ' + ${#numbers.formatDecimal(item.price, 1, 'COMMA', 2, 'POINT')}">Rs. 0</span>
+                </div>
+                <p th:text="${item.description} ?: ''">Description</p>
+                <p>
+                    <span class="chip" th:text="${item.category} ?: 'Uncategorised'">Main</span>
+                    <span class="chip chip-veg" th:if="${item.vegetarian}">&#127793; Veg</span>
+                    <span class="badge" th:classappend="${item.available} ? 'status-delivered' : 'status-cancelled'"
+                          th:text="${item.availabilityLabel}">Available</span>
+                </p>
+
+                <!-- customers can order right away -->
+                <form class="dish-actions" th:if="${authRole == 'CUSTOMER'}"
+                      th:action="@{/customer/cart/add}" method="post">
+                    <input type="hidden" name="menuItemId" th:value="${item.id}">
+                    <input class="qty-input" type="number" name="quantity" value="1" min="1" th:disabled="${!item.available}">
+                    <button type="submit" class="btn btn-sm btn-orange" th:disabled="${!item.available}">
+                        <span th:text="${item.available} ? 'Add to cart' : 'Sold out'">Add to cart</span>
+                    </button>
+                </form>
+
+                <!-- guests and admins get a sign-in prompt instead -->
+                <div class="dish-actions" th:unless="${authRole == 'CUSTOMER'}">
+                    <a th:href="@{/login}" class="btn btn-sm btn-outline"
+                       th:text="${item.available} ? 'Sign in to order' : 'Sold out'">Sign in to order</a>
+                </div>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/menu/manage.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>QuickBite - Manage menu (Member 3)</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1>Manage menu</h1>
+            <p class="muted">Admin &mdash; full CRUD for dishes (search, filter, edit, sold-out toggle, delete).</p>
+        </div>
+        <a th:href="@{/admin/menu/new}" class="btn">+ Add dish</a>
+    </div>
+
+    <form class="filter-form" th:action="@{/admin/menu}" method="get">
+        <div class="form-group">
+            <label for="keyword">Search dish</label>
+            <input type="text" id="keyword" name="keyword" th:value="${keyword}" placeholder="e.g. Kottu">
+        </div>
+        <div class="form-group">
+            <label for="restaurantId">Restaurant</label>
+            <select id="restaurantId" name="restaurantId">
+                <option value="">All restaurants</option>
+                <option th:each="r : ${restaurants}" th:value="${r.id}" th:text="${r.name}"
+                        th:selected="${restaurantId != null and restaurantId == r.id}">Restaurant</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-slate">Filter</button>
+        <a th:href="@{/admin/menu}" class="btn btn-outline">Reset</a>
+    </form>
+
+    <div class="card empty" th:if="${#lists.isEmpty(menuItems)}">
+        <span class="big">&#127858;</span>
+        No dishes found.
+    </div>
+
+    <div class="table-wrap" th:unless="${#lists.isEmpty(menuItems)}">
+        <table class="table">
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>Dish</th>
+                <th>Restaurant</th>
+                <th>Category</th>
+                <th>Price (Rs.)</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="item : ${menuItems}">
+                <td th:text="${item.id}">1</td>
+                <td>
+                    <strong th:text="${item.name}">Chicken Kottu</strong>
+                    <div class="muted" th:text="${item.description} ?: ''" style="font-size:.82rem;">Description</div>
+                </td>
+                <td th:text="${item.restaurant.name}">Rice & Curry House</td>
+                <td><span class="chip" th:text="${item.category} ?: '-'">Main</span></td>
+                <td th:text="${#numbers.formatDecimal(item.price, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+                <td>
+                    <span class="chip chip-veg" th:if="${item.vegetarian}">Veg</span>
+                    <span class="chip" th:unless="${item.vegetarian}">Non-veg</span>
+                </td>
+                <td>
+                    <span class="badge" th:classappend="${item.available} ? 'status-delivered' : 'status-cancelled'"
+                          th:text="${item.availabilityLabel}">Available</span>
+                </td>
+                <td>
+                    <div class="actions">
+                        <a th:href="@{/admin/menu/{id}/edit(id=${item.id})}" class="btn btn-sm btn-slate">Edit</a>
+                        <form th:action="@{/admin/menu/{id}/toggle(id=${item.id})}" method="post" class="inline-form">
+                            <button type="submit" class="btn btn-sm btn-amber"
+                                    th:text="${item.available} ? 'Sold out' : 'Available'">Sold out</button>
+                        </form>
+                        <form th:action="@{/admin/menu/{id}/delete(id=${item.id})}" method="post" class="inline-form"
+                              >
+                            <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
+
+### `src/main/resources/templates/menu/form.html`
+```html
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="${menuItem.id == null} ? 'QuickBite - New dish' : 'QuickBite - Edit dish'">Menu item form</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+</head>
+<body>
+<div th:replace="~{fragments/layout :: nav}"></div>
+
+<main class="container">
+    <div class="page-head">
+        <div>
+            <h1 th:text="${menuItem.id == null} ? 'Add a dish' : 'Edit dish'">Dish</h1>
+            <p class="muted">Admin &mdash; CREATE / UPDATE form</p>
+        </div>
+        <a th:href="@{/admin/menu}" class="btn btn-outline">&larr; Back to menu</a>
+    </div>
+
+    <div class="card">
+        <form th:action="${menuItem.id == null} ? @{/admin/menu} : @{/admin/menu/{id}(id=${menuItem.id})}" method="post">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="name">Dish name *</label>
+                    <input type="text" id="name" name="name" th:value="${menuItem.name}" required placeholder="Chicken Kottu">
+                </div>
+                <div class="form-group">
+                    <label for="price">Price in Rs. *</label>
+                    <input type="number" id="price" name="price" step="0.01" min="0" required
+                           th:value="${menuItem.price}" placeholder="1200.00">
+                </div>
+                <div class="form-group">
+                    <label for="category">Category</label>
+                    <select id="category" name="category">
+                        <option value="">-- select --</option>
+                        <option value="Starters" th:selected="${menuItem.category == 'Starters'}">Starters</option>
+                        <option value="Main" th:selected="${menuItem.category == 'Main'}">Main</option>
+                        <option value="Dessert" th:selected="${menuItem.category == 'Dessert'}">Dessert</option>
+                        <option value="Drinks" th:selected="${menuItem.category == 'Drinks'}">Drinks</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="restaurantId">Restaurant *</label>
+                    <select id="restaurantId" name="restaurantId" required>
+                        <option value="">-- select restaurant --</option>
+                        <option th:each="r : ${restaurants}" th:value="${r.id}" th:text="${r.name}"
+                                th:selected="${menuItem.restaurant != null and menuItem.restaurant.id == r.id}">Restaurant</option>
+                    </select>
+                </div>
+                <div class="form-group full">
+                    <label for="description">Description</label>
+                    <textarea id="description" name="description" th:text="${menuItem.description}"
+                              placeholder="What is inside this dish?"></textarea>
+                </div>
+                <div class="form-group check-row">
+                    <input type="checkbox" id="vegetarian" name="vegetarian" th:checked="${menuItem.vegetarian}">
+                    <label for="vegetarian" style="margin:0">Vegetarian</label>
+                </div>
+                <div class="form-group check-row">
+                    <input type="checkbox" id="available" name="available"
+                           th:checked="${menuItem.id == null or menuItem.available}">
+                    <label for="available" style="margin:0">Available for ordering</label>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="submit" class="btn" th:text="${menuItem.id == null} ? 'Add dish' : 'Save changes'">Save</button>
+                <a th:href="@{/admin/menu}" class="btn btn-outline">Cancel</a>
+            </div>
+        </form>
+    </div>
+</main>
+
+<div th:replace="~{fragments/layout :: footer}"></div>
+</body>
+</html>
+
+```
